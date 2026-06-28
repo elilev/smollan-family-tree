@@ -1,0 +1,427 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); }
+#app { padding: 1rem 0; }
+.toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
+.toolbar input { flex: 1; min-width: 180px; height: 36px; padding: 0 12px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); font-size: 14px; }
+.toolbar button { height: 36px; padding: 0 14px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: transparent; color: var(--color-text-primary); font-size: 13px; cursor: pointer; white-space: nowrap; }
+.toolbar button:hover { background: var(--color-background-secondary); }
+.toolbar button.active { background: var(--color-background-info); color: var(--color-text-info); border-color: transparent; }
+.legend { display: flex; gap: 12px; font-size: 12px; color: var(--color-text-secondary); align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+.legend-item { display: flex; align-items: center; gap: 4px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+#tree-container { width: 100%; overflow-x: auto; overflow-y: visible; }
+svg text { font-family: var(--font-sans); }
+.node-card { cursor: pointer; }
+.node-card rect { transition: filter 0.15s; }
+.node-card:hover rect { filter: brightness(0.95); }
+.panel { position: fixed; top: 0; right: 0; width: 300px; height: 100%; background: var(--color-background-primary); border-left: 0.5px solid var(--color-border-secondary); padding: 1.25rem; overflow-y: auto; transform: translateX(100%); transition: transform 0.25s; z-index: 100; }
+.panel.open { transform: translateX(0); }
+.panel h3 { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+.panel .subtitle { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 1rem; }
+.panel .close-btn { position: absolute; top: 1rem; right: 1rem; background: none; border: none; cursor: pointer; font-size: 20px; color: var(--color-text-secondary); }
+.detail-row { font-size: 13px; padding: 6px 0; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; gap: 8px; }
+.detail-label { color: var(--color-text-secondary); min-width: 70px; }
+.highlight-match rect { stroke: #378ADD !important; stroke-width: 2.5 !important; }
+</style>
+<div id="app">
+  <h2 class="sr-only">Smollan Family Tree — interactive genealogy spanning 7 generations from Zelig (David) Smollan of Suwalki, Russia</h2>
+  <div class="toolbar">
+    <input type="text" id="search" placeholder="Search by name…" oninput="searchTree(this.value)" />
+    <button onclick="resetView()" id="btn-reset">Reset view</button>
+    <button onclick="expandAll()" id="btn-expand">Expand all</button>
+    <button onclick="collapseAll()" id="btn-collapse">Collapse all</button>
+  </div>
+  <div class="legend">
+    <span>Generation colors:</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#534AB7"></span>Gen 1</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#185FA5"></span>Gen 2</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#0F6E56"></span>Gen 3</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#BA7517"></span>Gen 4</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#993C1D"></span>Gen 5</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#993556"></span>Gen 6</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#3B6D11"></span>Gen 7</span>
+    <span class="legend-item" style="margin-left:8px"><span class="legend-dot" style="background:#888; border-radius:0"></span>Click node for details</span>
+  </div>
+  <div id="tree-container"><svg id="tree"></svg></div>
+</div>
+<div class="panel" id="panel">
+  <button class="close-btn" onclick="closePanel()">✕</button>
+  <h3 id="panel-name"></h3>
+  <div class="subtitle" id="panel-sub"></div>
+  <div id="panel-details"></div>
+</div>
+<script>
+const genColors = ['#534AB7','#185FA5','#0F6E56','#BA7517','#993C1D','#993556','#3B6D11'];
+const genLight  = ['#EEEDFE','#E6F1FB','#E1F5EE','#FAEEDA','#FAECE7','#FBEAF0','#EAF3DE'];
+
+const data = {
+  id:'G1', name:'Zelig (David) Smollan', gen:0, note:'Labourer 1893; origin: Suwalki, Russia',
+  children:[
+    {id:'G1C1', name:'Perel Smollan', gen:1, note:'Married Silin (children in Israel), then Silverman',
+      children:[
+        {id:'G1C1C1', name:'Al-Chunah (Hyman) Silverberg', gen:2, note:'Cantor', children:[
+          {id:'c1',name:'Jacob Silverberg',gen:3},{id:'c2',name:'Sam Silverberg',gen:3},
+          {id:'c3',name:'Sarah Silverberg (Weiss)',gen:3},{id:'c4',name:'Annie Silverberg (Chanin)',gen:3},
+          {id:'c5',name:'Ethel Silverberg (Horowitz)',gen:3}
+        ]}
+      ]
+    },
+    {id:'G1C2', name:'Chaim (Hyman) Smollan', gen:1, note:'b.1860 Suwalki · d.1924 Middlesbrough · 11 children',
+      children:[
+        {id:'g2c1',name:'Fanny (He\'ena) Smollan', gen:2, note:'m. Alfred Morris Greenberg 1905', children:[
+          {id:'r1',name:'Rachel (Rae) Greenberg',gen:3,note:'m. Bernard Green',children:[{id:'r1c1',name:'Susan Green',gen:4}]},
+          {id:'r2',name:'Blanche Greenberg',gen:3,note:'m. Kim Marwood',children:[{id:'r2c1',name:'Ruth Marwood',gen:4},{id:'r2c2',name:'Roger Marwood',gen:4}]},
+          {id:'r3',name:'Bertha Greenberg',gen:3,note:'m. Leslie Simon',children:[{id:'r3c1',name:'Harvey Simon',gen:4},{id:'r3c2',name:'Mark Simon',gen:4},{id:'r3c3',name:'Sonia Simon (Silverblatt)',gen:4}]},
+          {id:'r4',name:'Anne (Chana) Greenberg',gen:3,note:'m. Ben Maskill',children:[
+            {id:'r4c1',name:'Ruth Maskill',gen:4,note:'m. Baruch',children:[{id:'r4c1a',name:'Shemer Baruch',gen:5},{id:'r4c1b',name:'Shiri Baruch',gen:5},{id:'r4c1c',name:'Yoel Baruch',gen:5}]},
+            {id:'r4c2',name:'Naomi Maskill',gen:4,note:'m. Avi Schwitzer',children:[{id:'r4c2a',name:'Yonatan Schwitzer',gen:5},{id:'r4c2b',name:'Orna Schwitzer',gen:5},{id:'r4c2c',name:'Talmah Schwitzer',gen:5},{id:'r4c2d',name:'Shira Schwitzer',gen:5}]}
+          ]},
+          {id:'r5',name:'Linda (Devorah) Greenberg',gen:3,note:'Aliyah to Israel 1948 · m. Shmuel Finkelstein',children:[{id:'r5c1',name:'Baruch Finkelstein',gen:4},{id:'r5c2',name:'Sarah Finkelstein',gen:4}]},
+          {id:'r6',name:'Sam (Simcha) Greenberg',gen:3,note:'b.~1906 · d.~1996 Israel',children:[
+            {id:'r6c1',name:'David Greenberg',gen:4,note:'Settled Israel'},
+            {id:'r6c2',name:'Rita Lee Greenberg',gen:4,note:'b.~1936 · Physiotherapist · Canada then Israel 1979',children:[{id:'r6c2a',name:'Dale Sadlick',gen:5,note:'Chemical engineer, LA'},{id:'r6c2b',name:'Karen Sadlick',gen:5,note:'Speech pathologist, Israel'},{id:'r6c2c',name:'Bram Sadlick',gen:5}]}
+          ]},
+          {id:'r7',name:'Phillip (Phil) Greenberg',gen:3,note:'b.17 May 1914 · twin of Dora · settled Melbourne Australia',children:[
+            {id:'r7c1',name:'Jeffrey Greenberg',gen:4,note:'b.7 Jun 1943 Middlesbrough · m. Clara Rosen 1967 Melbourne',children:[
+              {id:'r7c1a',name:'Mark Kevin Greenberg',gen:5,note:'b.2 Sep 1968 Melbourne',children:[{id:'r7c1a1',name:'Toby Justin Greenberg',gen:6,note:'b.20 Nov 1998 Melbourne'}]},
+              {id:'r7c1b',name:'Lisa Rochell Greenberg',gen:5,note:'b.4 Jan 1971 Melbourne',children:[{id:'r7c1b1',name:'Joshua Leigh Lipszyc',gen:6},{id:'r7c1b2',name:'Bradley Eitan Lipszyc',gen:6}]},
+              {id:'r7c1c',name:'Jason Simon Greenberg',gen:5,note:'b.4 Mar 1975 Melbourne'}
+            ]},
+            {id:'r7c2',name:'Josephine Louise (Jo) Greenberg',gen:4,note:'b.22 Apr 1947 Portsmouth · m. Shmulik Zalstberg',children:[{id:'r7c2a',name:'Shelley Fiona Zalstberg',gen:5},{id:'r7c2b',name:'Paul Zalstberg',gen:5},{id:'r7c2c',name:'Amy Miriam Zalstberg',gen:5}]}
+          ]},
+          {id:'r8',name:'Dora (Devorah) Greenberg',gen:3,note:'b.17 May 1914 · twin of Phil · d.~1992 · m. Hymie Bernstein',children:[
+            {id:'r8c1',name:'Barry Bernstein',gen:4,note:'m. Jackie',children:[{id:'r8c1a',name:'Daniel Bernstein',gen:5},{id:'r8c1b',name:'Natalie Bernstein',gen:5}]},
+            {id:'r8c2',name:'Geoffrey Bernstein',gen:4,note:'b.29 Jun 1943 · m. Zena',children:[{id:'r8c2a',name:'Raynna Bernstein',gen:5},{id:'r8c2b',name:'Darren Bernstein',gen:5}]}
+          ]},
+          {id:'r9',name:'Terrence (Terry) Greenberg',gen:3,note:'b.25 Nov 1923 Middlesbrough · m. Esther Caplan 1949 Edinburgh',children:[
+            {id:'r9c1',name:'Aviva Sara Greenberg',gen:4,note:'b.1950 · m. Ari Levine 1975 Kibbutz Sha\'alvim',children:[{id:'r9c1a',name:'Chephzibah Chyenna Levine',gen:5},{id:'r9c1b',name:'Yedidah Levine',gen:5},{id:'r9c1c',name:'Chamultal Levine',gen:5},{id:'r9c1d',name:'Eliashiv Zusya Levine',gen:5},{id:'r9c1e',name:'Tsuriel M\'lamed Levine',gen:5},{id:'r9c1f',name:'Shulamit Levine',gen:5},{id:'r9c1g',name:'Bat Sheva Levine',gen:5},{id:'r9c1h',name:'Ben Zion Chaim Levine',gen:5}]},
+            {id:'r9c2',name:'Rifka Leah Greenberg',gen:4,note:'b.1953 · m. Amir Karni, Yavneh Israel',children:[{id:'r9c2a',name:'Nataniel Karni',gen:5}]},
+            {id:'r9c3',name:'Gila Greenberg',gen:4,note:'b.1955 · m. Gershon Reisner, Jerusalem',children:[{id:'r9c3a',name:'Natan Pesach Reisner',gen:5},{id:'r9c3b',name:'Yehudah Reisner',gen:5},{id:'r9c3c',name:'Hillel Reisner',gen:5},{id:'r9c3d',name:'Leah Shira Reisner',gen:5},{id:'r9c3e',name:'Shlomi Chiam Reisner',gen:5}]},
+            {id:'r9c4',name:'Moshe Dov Greenberg',gen:4,note:'b.1963 · m. Ophira Yerushalami, Jerusalem',children:[{id:'r9c4a',name:'Atara Greenberg',gen:5},{id:'r9c4b',name:'Moria Greenberg',gen:5},{id:'r9c4c',name:'Itamar Chaim Greenberg',gen:5},{id:'r9c4d',name:'Ya\'ir Greenberg',gen:5}]}
+          ]},
+          {id:'r10',name:'Sadie Greenberg',gen:3,note:'b.1926 · twin of Ann · Aliyah 1949 · m. Joe Ramati',children:[
+            {id:'r10c1',name:'Gillian Ramati',gen:4,note:'b. Israel'},
+            {id:'r10c2',name:'Dov Ramati',gen:4,note:'b. Israel · m. Shoshana',children:[
+              {id:'r10c2a',name:'Nadav Ramati',gen:5,note:'m. Yifat',children:[{id:'r10c2a1',name:'Omri Ramati',gen:6,note:'b.23 Nov 2000 Israel'}]},
+              {id:'r10c2b',name:'Iyal Ramati',gen:5},{id:'r10c2c',name:'Ran Ramati',gen:5}
+            ]}
+          ]},
+          {id:'r11',name:'Hyman (Chaim) Greenberg',gen:3,note:'b.1927 · doctor in Scarborough Canada · d. heart attack',children:[
+            {id:'r11c1',name:'Jonathan Greenberg',gen:4},
+            {id:'r11c2',name:'David Greenberg',gen:4,note:'m. Roza',children:[{id:'r11c2a',name:'Jordan Greenberg',gen:5,note:'b.28 May 1985'},{id:'r11c2b',name:'Matthew Greenberg',gen:5,note:'b.9 Aug 1987'},{id:'r11c2c',name:'Shayne Greenberg',gen:5,note:'b.13 Nov 1989'}]},
+            {id:'r11c3',name:'Ruth Greenberg',gen:4,note:'m. Eidan',children:[{id:'r11c3a',name:'Danny Eidan',gen:5,note:'b.1983'},{id:'r11c3b',name:'Leora Eidan',gen:5,note:'b.1987'},{id:'r11c3c',name:'Tama Eidan',gen:5,note:'b.1990'},{id:'r11c3d',name:'Roee Eidan',gen:5,note:'b.1994'}]}
+          ]}
+        ]},
+        {id:'g2c2',name:'Israel (Zelick) Smollan',gen:2,note:'b.7 Jan 1885 Middlesbrough · tailor · m. Rachel Levine 1909',children:[
+          {id:'iz1',name:'David (Doddy) Smollan',gen:3,note:'b.1910 · d. 1970s from MS',children:[{id:'iz1c1',name:'Susan Smollan',gen:4,note:'Adopted'}]},
+          {id:'iz2',name:'Louis Smollan',gen:3,note:'b.29 Mar 1912 Gateshead · m. Jenny Coffman 1946',children:[
+            {id:'iz2c1',name:'Russell Smollan',gen:4,note:'d. age 10 days'},
+            {id:'iz2c2',name:'Roberta Michelle Smollan',gen:4,note:'b.23 Mar 1957 · adopted · m.(1) Jonathan Michaels 1978; m.(2) Zelick Mendelovich 1999',children:[
+              {id:'iz2c2a',name:'David Simon Michaels',gen:5,note:'b.6 Feb 1981 Middlesbrough'},
+              {id:'iz2c2b',name:'Rachel Galena Michaels',gen:5,note:'b.16 May 1983 Middlesbrough'},
+              {id:'iz2c2c',name:'Abigail Rebecca Mendelovich',gen:5,note:'b.21 Dec 2000'}
+            ]}
+          ]},
+          {id:'iz3',name:'Sarah Rebecca (Sadie) Smollan',gen:3,note:'b.20 Dec 1922 · d.2000 Kiryat Bialik Israel · m. Mordechai Mendelovich',children:[
+            {id:'iz3c1',name:'Navah Mendelovich',gen:4,note:'m. Shmuel Marom · 9 children'},
+            {id:'iz3c2',name:'Joel Mendelovich',gen:4},
+            {id:'iz3c3',name:'Zelick Mendelovich',gen:4,note:'b.23 Sep 1955 · m. Roberta Smollan 1999',children:[{id:'iz3c3a',name:'Abigail Rebecca Mendelovich',gen:5,note:'b.21 Dec 2000'}]}
+          ]}
+        ]},
+        {id:'g2c3',name:'Betsy Smollan',gen:2,note:'b.1886 Middlesbrough · m. Jack Hoffman 1911',children:[
+          {id:'bt1',name:'Annie Freda Hoffman',gen:3,note:'b.18 Jul 1912 · d.28 Jul 1982 · m. Adolf Gleitman 1931',children:[
+            {id:'bt1c1',name:'Essie Gleitman',gen:4,note:'b.6 Jun 1933 London · m. Harold Mendelson 1951',children:[
+              {id:'bt1c1a',name:'Julie Mendelson',gen:5,note:'b.11 Nov 1952 · m. David Zohar 1975 Perth'},
+              {id:'bt1c1b',name:'Karen Mendelson',gen:5,note:'b.19 Dec 1958 · m. Paul Harris 1980 Melbourne'},
+              {id:'bt1c1c',name:'Lynne Mendelson',gen:5,note:'b.5 May 1960 Middlesbrough'}
+            ]}
+          ]},
+          {id:'bt2',name:'Rita Hoffman',gen:3,note:'b.1914 · m. Edward Elliott'}
+        ]},
+        {id:'g2c4',name:'Hindy (Henrietta) Smollan',gen:2,note:'b.27 Jul 1890 · d.Apr 1972 Toronto · m. Wilfred Freeman · President Middlesbrough Chevra Kadisha',children:[
+          {id:'hd1',name:'Alan (Adolphi) Freeman',gen:3,note:'b.12 Dec 1923 · Served Royal Armoured Corps WW2 · Canada 1948 · m. Barbara Rudman 1959',children:[
+            {id:'hd1c1',name:'Elyssa Sandra Freeman',gen:4,note:'b.13 Mar 1961 · m. Mitchell Cohen 1998',children:[{id:'hd1c1a',name:'Cohen (unnamed at record)',gen:5,note:'b.30 Mar 2000'}]},
+            {id:'hd1c2',name:'Mark Freeman',gen:4,note:'b.1962'},{id:'hd1c3',name:'Bruce Victor Freeman',gen:4,note:'b.26 Jan 1965'}
+          ]},
+          {id:'hd2',name:'Beryl (Babs) Freeman',gen:3,note:'b.5 Jan 1925 Middlesbrough · m. Norman Shapiro 1944',children:[
+            {id:'hd2c1',name:'Debra Susan Shapiro',gen:4,note:'b.28 May 1947 Toronto · m.(1) Lawrence Tomarin 1967; m.(2) Lawrie Silverberg 1991',children:[{id:'hd2c1a',name:'Andrew Tomarin',gen:5,note:'b.23 May 1969'}]},
+            {id:'hd2c2',name:'Beverley Faye Shapiro',gen:4,note:'b.27 Jul 1951 Toronto · m.(1) Jay Smorden 1971; m.(2) Norman Hennick 1984',children:[{id:'hd2c2a',name:'Jennifer Smorden',gen:5,note:'b.27 Apr 1978'}]},
+            {id:'hd2c3',name:'Leslie Zandra Shapiro',gen:4,note:'b.14 Nov 1955'}
+          ]}
+        ]},
+        {id:'g2c5',name:'Aishe (Henry) Smollan',gen:2,note:'b.1891 Middlesbrough · m. Annie Clayman 1914',children:[
+          {id:'ah1',name:'Abby Smollan',gen:3},
+          {id:'ah2',name:'Harold Smollan',gen:3,note:'b.~1926 Canada · d.7 Apr 1945 Germany (WW2) · Private 14820558 West Yorkshire Regt'},
+          {id:'ah3',name:'Joshua Smollan',gen:3,note:'b.1915 Middlesbrough · d.30 Jan 1944 Malta · Sgt RAF 608 Sqdn'},
+          {id:'ah4',name:'Rita Lillian Smollan',gen:3,note:'b.1916 Middlesbrough'},
+          {id:'ah5',name:'Benjamin (Bert) Smollan',gen:3,note:'b.1919 Newcastle'},
+          {id:'ah6',name:'Dennis Smollan',gen:3,note:'d.7 Feb 1943 · AC1 51 Sqdn RAF · buried Hazelrigg Jewish Cemetery'}
+        ]},
+        {id:'g2c6',name:'Rachel (Rae) Smollan',gen:2,note:'b.1893 Middlesbrough · m. Julius Ruben'},
+        {id:'g2c7',name:'Barnard (Barney) Smollan',gen:2,note:'b.1895 Sheffield · d. London · m. Sadie Gluckstein 1918',children:[
+          {id:'br1',name:'Betty Smollan',gen:3,note:'b.9 Jun 1920 London · m. Montague Peston 1943',children:[
+            {id:'br1c1',name:'Dennis David Peston',gen:4,note:'b.23 Jan 1946 · d.1999 Nigeria (heart attack)',children:[{id:'br1c1a',name:'Martin Peston',gen:5},{id:'br1c1b',name:'Sharon Peston',gen:5,note:'b.1979'},{id:'br1c1c',name:'Mark Peston',gen:5,note:'b.1982'}]},
+            {id:'br1c2',name:'Myer Michael Peston',gen:4,note:'b.23 Jan 1946 · m. Anne Cohen 1975 Melbourne',children:[{id:'br1c2a',name:'Matthew Peston',gen:5,note:'b.1977'},{id:'br1c2b',name:'Ashley Peston',gen:5,note:'b.1982'}]},
+            {id:'br1c3',name:'Gloria Ruth Peston',gen:4,note:'b.3 Jul 1952'}
+          ]},
+          {id:'br2',name:'Yvonne Smollan',gen:3,note:'b.1922 Hobart · d.1978 Melbourne · m. Harry Hemstead'},
+          {id:'br3',name:'Carol Smollan',gen:3,note:'b.1933 · d.1999 · m.(1) Tony Lewis; m.(2) Max Granick',children:[
+            {id:'br3c1',name:'Tina Lewis',gen:4,note:'m. McVeigh',children:[{id:'br3c1a',name:'Sara McVeigh',gen:5},{id:'br3c1b',name:'Ben McVeigh',gen:5}]}
+          ]}
+        ]},
+        {id:'g2c8',name:'Benjamin (Benjy) Smollan',gen:2,note:'b.1897 Middlesbrough · m. Bella · had a son'},
+        {id:'g2c9',name:'Nat (Nathaniel) Smollan',gen:2,note:'b.1899 Middlesbrough · song & dance act "The Smollans" · m. Hilda',children:[
+          {id:'nt1',name:'Rona Smollan',gen:3,note:'b. Glasgow, Scotland'}
+        ]},
+        {id:'g2c10',name:'Leah Smollan',gen:2,note:'b.1901 Middlesbrough · m. Mark Wolfe',children:[
+          {id:'lh1',name:'Harold Wolfe',gen:3,note:'Adopted 1944'}
+        ]},
+        {id:'g2c11',name:'Blumah (Blanche) Smollan',gen:2,note:'b.2 Jul 1903 · d.2 Jul 1982 Johannesburg · m. Myer Solomon 1929',children:[
+          {id:'bl1',name:'Sonia Berenice Solomon',gen:3,note:'b.6 Dec 1930 Middlesbrough · m. Denis Dyne',children:[
+            {id:'bl1c1',name:'Ronnie Irvin Dyne',gen:4,note:'b.28 Feb 1953 Newcastle · m. Susan Messer 1979 Joburg',children:[{id:'bl1c1a',name:'Jonathan Dyne',gen:5,note:'b.12 Nov 1985'},{id:'bl1c1b',name:'Saul Dyne',gen:5,note:'b.12 Feb 1993'},{id:'bl1c1c',name:'Benjamin Dyne',gen:5,note:'b.12 Feb 1993'}]},
+            {id:'bl1c2',name:'Gary Selwyn Dyne',gen:4,note:'b.11 Oct 1955 Newcastle · m. Arlene Levine 1981 Joburg',children:[{id:'bl1c2a',name:'Bradley Warren Dyne',gen:5,note:'b.14 Aug 1984'},{id:'bl1c2b',name:'Gregory Dyne',gen:5,note:'b. Sep 1985'},{id:'bl1c2c',name:'Ricky Dyne',gen:5,note:'b. Jan 1989'}]},
+            {id:'bl1c3',name:'Jacalyn Merle Dyne',gen:4,note:'b.20 May 1963 Port Elizabeth · m. Victor Cramer 1987 Joburg',children:[{id:'bl1c3a',name:'Claudia Cramer',gen:5,note:'b.23 Aug 1989'},{id:'bl1c3b',name:'Adam Cramer',gen:5,note:'b.16 Sep 1991'},{id:'bl1c3c',name:'Dean Cramer',gen:5,note:'b.11 Apr 1997'}]}
+          ]},
+          {id:'bl2',name:'Hannah Estelle (Anne) Solomon',gen:3,note:'b.3 May 1937 · President NZ National Council of Jewish Women · m. Raymond Benda 1956 · emigrated NZ 1962',children:[
+            {id:'bl2c1',name:'Russell Bernard Benda',gen:4,note:'b.20 Jun 1957 Gateshead · m. Meredith Adler 1981 Wellington NZ',children:[{id:'bl2c1a',name:'Rachael Blanche Benda',gen:5,note:'b.1 Apr 1986 Melbourne'}]},
+            {id:'bl2c2',name:'Sharon Louise Benda',gen:4,note:'b.4 Sep 1958 Newcastle'}
+          ]},
+          {id:'bl3',name:'Leslie Solomon',gen:3,note:'b.13 Jun 1944 · adopted · son of Sadie Mendelovich · m. Louise 1973',children:[
+            {id:'bl3c1',name:'Lara Solomon',gen:4},{id:'bl3c2',name:'Kate Solomon',gen:4},{id:'bl3c3',name:'Jacob Solomon',gen:4},{id:'bl3c4',name:'Joshua Solomon',gen:4}
+          ]}
+        ]}
+      ]
+    },
+    {id:'G1C3', name:'Barnett (Barney) Smollan', gen:1, note:'b.1866 Suwalki · d.4 Feb 1924 Middlesbrough · slipper maker · 22 Farrer St',
+      children:[
+        {id:'ba1',name:'Annie Smollan',gen:2,note:'b.~1888 Russia · m. Israel (Izzy) Jacobs 1907',children:[
+          {id:'ba1c1',name:'David Jacobs',gen:3,note:'b.1909 · m.(1) Debra; m.(2) Stella',children:[{id:'ba1c1a',name:'Barbara Jacobs',gen:4}]},
+          {id:'ba1c2',name:'Ethel Jacobs',gen:3,note:'b.1911 · m. Gerry Druvan'},
+          {id:'ba1c3',name:'Philip Jacobs',gen:3,note:'b.1918'},
+          {id:'ba1c4',name:'Miriam (Mimi) Jacobs',gen:3,note:'b.1923 · m. Harry Joseph',children:[{id:'ba1c4a',name:'Peter Joseph',gen:4},{id:'ba1c4b',name:'Karen Joseph (Martin)',gen:4}]},
+          {id:'ba1c5',name:'Bernard Jacobs',gen:3,note:'b.1927 · m. Pat',children:[
+            {id:'ba1c5a',name:'Martin Jacobs',gen:4,note:'m. Linda',children:[{id:'ba1c5a1',name:'Macmillan Jacobs',gen:5},{id:'ba1c5a2',name:'Anastasi Jacobs',gen:5}]},
+            {id:'ba1c5b',name:'Anne Jacobs',gen:4}
+          ]}
+        ]},
+        {id:'ba2',name:'Polly Smollan',gen:2,note:'b.~1888 · d.11 Dec 1977 Canada · m. Jack Goldstein 1914',children:[
+          {id:'ba2c1',name:'Lewis Isaac Goldstein',gen:3,note:'b.1915 Middlesbrough'},
+          {id:'ba2c2',name:'Emmanuel Goldstein',gen:3,note:'b.1917 Middlesbrough'},
+          {id:'ba2c3',name:'David Goldstein',gen:3,note:'b.1920 Middlesbrough'},
+          {id:'ba2c4',name:'Esther Goldstein',gen:3,note:'b.1924 England · m. George Findlay 1949'},
+          {id:'ba2c5',name:'Vera Goldstein',gen:3,note:'b.1927 Middlesbrough · d.1994 Canada · m. Kevin Hicks',children:[
+            {id:'ba2c5a',name:'Jane Hicks',gen:4,note:'m.(1) Rick Otterbrite; m.(2) Andrew Teasdale',children:[
+              {id:'ba2c5a1',name:'Tara Otterbrite',gen:5},{id:'ba2c5a2',name:'Rachel Otterbrite',gen:5},{id:'ba2c5a3',name:'Amanda Otterbrite',gen:5},{id:'ba2c5a4',name:'Christian Teasdale',gen:5}
+            ]},
+            {id:'ba2c5b',name:'Alistair Hicks',gen:4}
+          ]}
+        ]},
+        {id:'ba3',name:'Hilda Smollan',gen:2,note:'b.1892 Middlesbrough · d.1936 · m. Jack Benjamin',children:[
+          {id:'ba3c1',name:'Bernard Benjamin',gen:3,note:'m. June',children:[{id:'ba3c1a',name:'Simon Benjamin',gen:4,note:'m.(1) Clare; m.(2) Heather'}]}
+        ]},
+        {id:'ba4',name:'Philip (Phil) Smollan',gen:2,note:'b.30 Apr 1894 · d.Feb 1977 Los Angeles · twin of Wolfe',children:[
+          {id:'ba4c1',name:'David Smollan',gen:3,note:'b.22 Jun 1928 California · d.14 Oct 1995 California · m.(1) Stella; m.(2) June Benjamin'}
+        ]},
+        {id:'ba5',name:'Miriam Smollan',gen:2,note:'b.1896 Middlesbrough · d.5 Sep 1916 Middlesbrough'},
+        {id:'ba6',name:'Bella Smollan',gen:2,note:'b.1897 Middlesbrough · d.10 Oct 1958 Middlesbrough'},
+        {id:'ba7',name:'David Smollan',gen:2,note:'b.1899 Middlesbrough · d.4 Oct 1917 Lichfield Staffordshire'},
+        {id:'ba8',name:'Eleanor (Ellene) Smollan',gen:2,note:'b.1900 Middlesbrough · d.9 Sep 1978 Middlesbrough'},
+        {id:'ba9',name:'Wolfe Smollan',gen:2,note:'b.28 Mar 1902 Middlesbrough · d.22 Feb 1980 Sunderland · twin of Philip'},
+        {id:'ba10',name:'Leah Smollan',gen:2,note:'b.29 Feb 1904 · d.11 Nov 1975 Middlesbrough · m. Solly Kossick 1941'},
+        {id:'ba11',name:'Son Smollan (unknown)',gen:2,note:'Emigrated USA; father of American Smollans',children:[
+          {id:'ba11c1',name:'David Smollan',gen:3,note:'b.14 Nov 1905 USA · d.Nov 1980 Florida'},
+          {id:'ba11c2',name:'Mary Smollan',gen:3,note:'b.6 May 1910 USA · d.31 Jan 1999 USA'},
+          {id:'ba11c3',name:'Lillian (Lil) Smollan',gen:3,note:'b.14 Nov 1911 · d.13 Sep 1996 Miami · never married'}
+        ]}
+      ]
+    },
+    {id:'G1C4', name:'Jacob (Yaacov) Smollan', gen:1, note:'b.~1874 Stockton · shoemaker then picture dealer · m. Annie Klumpus 1893',
+      children:[
+        {id:'jc1',name:'Bill (Wolfe) Smollan',gen:2,note:'b.1 Aug 1894 Middlesbrough · d.Aug 1966 Philadelphia'},
+        {id:'jc2',name:'Fanny (Fan) Smollan',gen:2,note:'b.8 Apr 1896 Stockton · never married'},
+        {id:'jc3',name:'Essie Smollan',gen:2,note:'b.1 Mar 1902 Middlesbrough · d.Sep 1983 Miami Florida'}
+      ]
+    }
+  ]
+};
+
+const W = 160, H = 60, HGAP = 20, VGAP = 80;
+let collapsed = new Set();
+let allNodes = [];
+
+function flatten(node, parent=null) {
+  allNodes.push({...node, parent});
+  if (node.children) node.children.forEach(c => flatten(c, node));
+}
+flatten(data);
+
+function getVisible(node) {
+  if (!node.children || collapsed.has(node.id)) return [node];
+  return [node, ...node.children.flatMap(c => getVisible(c))];
+}
+
+function layout(node, depth=0, offset=0) {
+  const visible = !collapsed.has(node.id);
+  let childrenNodes = (visible && node.children) ? node.children : [];
+  if (childrenNodes.length === 0) {
+    node._x = offset;
+    node._y = depth;
+    node._width = 1;
+    return 1;
+  }
+  let total = 0;
+  childrenNodes.forEach(c => { total += layout(c, depth+1, offset+total); });
+  node._width = total;
+  node._x = offset + (total - 1) / 2;
+  node._y = depth;
+  return total;
+}
+
+function render() {
+  layout(data);
+  const svg = document.getElementById('tree');
+  const leaves = countLeaves(data);
+  const svgW = Math.max(680, leaves * (W + HGAP));
+  const depth = maxDepth(data);
+  const svgH = (depth + 1) * (H + VGAP) + 40;
+  svg.setAttribute('width', svgW);
+  svg.setAttribute('height', svgH);
+  svg.innerHTML = '';
+
+  drawEdges(data, svg, svgW);
+  drawNodes(data, svg, svgW);
+}
+
+function px(node, svgW) {
+  const leaves = countLeaves(data);
+  const unit = svgW / Math.max(1, leaves);
+  return node._x * unit + unit/2;
+}
+
+function py(node) { return node._y * (H + VGAP) + 20; }
+
+function countLeaves(node) {
+  if (!node.children || collapsed.has(node.id) || node.children.length===0) return 1;
+  return node.children.reduce((s,c)=>s+countLeaves(c),0);
+}
+
+function maxDepth(node, d=0) {
+  if (!node.children || collapsed.has(node.id)) return d;
+  return Math.max(...node.children.map(c=>maxDepth(c,d+1)));
+}
+
+function drawEdges(node, svg, svgW) {
+  if (!node.children || collapsed.has(node.id)) return;
+  const x1 = px(node, svgW), y1 = py(node) + H;
+  node.children.forEach(child => {
+    const x2 = px(child, svgW), y2 = py(child);
+    const mid = (y1+y2)/2;
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',`M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`);
+    path.setAttribute('fill','none');
+    path.setAttribute('stroke','var(--color-border-secondary)');
+    path.setAttribute('stroke-width','1.5');
+    svg.appendChild(path);
+    drawEdges(child, svg, svgW);
+  });
+}
+
+function drawNodes(node, svg, svgW) {
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('class','node-card');
+  g.setAttribute('id','node-'+node.id);
+  g.setAttribute('data-id', node.id);
+  g.style.cursor='pointer';
+
+  const x = px(node, svgW) - W/2, y = py(node);
+  const gen = node.gen || 0;
+  const fill = genLight[gen] || '#F1EFE8';
+  const stroke = genColors[gen] || '#534AB7';
+  const textColor = genColors[gen] || '#534AB7';
+
+  const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+  rect.setAttribute('x',x); rect.setAttribute('y',y);
+  rect.setAttribute('width',W); rect.setAttribute('height',H);
+  rect.setAttribute('rx','8'); rect.setAttribute('ry','8');
+  rect.setAttribute('fill',fill);
+  rect.setAttribute('stroke',stroke);
+  rect.setAttribute('stroke-width','1.5');
+  g.appendChild(rect);
+
+  const hasKids = node.children && node.children.length > 0;
+  const isCollapsed = collapsed.has(node.id);
+
+  const nameParts = node.name.length > 22 ? [node.name.slice(0,22)+'\u2026'] : [node.name];
+  const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+  text.setAttribute('x', x+W/2); text.setAttribute('y', y+H/2-(hasKids?4:0));
+  text.setAttribute('text-anchor','middle'); text.setAttribute('dominant-baseline','middle');
+  text.setAttribute('font-size','11.5'); text.setAttribute('font-weight','500');
+  text.setAttribute('fill', textColor);
+  text.textContent = nameParts[0];
+  g.appendChild(text);
+
+  if (hasKids) {
+    const indicator = document.createElementNS('http://www.w3.org/2000/svg','text');
+    indicator.setAttribute('x', x+W/2); indicator.setAttribute('y', y+H-10);
+    indicator.setAttribute('text-anchor','middle');
+    indicator.setAttribute('font-size','10'); indicator.setAttribute('fill', stroke);
+    indicator.textContent = isCollapsed ? `▶ ${node.children.length} children` : `▼ ${node.children.length} children`;
+    g.appendChild(indicator);
+  }
+
+  g.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (hasKids) {
+      if (collapsed.has(node.id)) collapsed.delete(node.id);
+      else collapsed.add(node.id);
+      render();
+    }
+    openPanel(node);
+  });
+
+  svg.appendChild(g);
+  if (node.children && !isCollapsed) node.children.forEach(c=>drawNodes(c,svg,svgW));
+}
+
+function openPanel(node) {
+  document.getElementById('panel-name').textContent = node.name;
+  document.getElementById('panel-sub').textContent = 'Generation ' + (node.gen+1);
+  const details = document.getElementById('panel-details');
+  const rows = [];
+  if (node.note) rows.push(['Notes', node.note]);
+  if (node.children) rows.push(['Children', node.children.map(c=>c.name).join(', ')]);
+  const parent = allNodes.find(n=>n.id===node.id)?.parent;
+  if (parent) rows.push(['Parent', parent.name]);
+  details.innerHTML = rows.map(([l,v])=>`<div class="detail-row"><span class="detail-label">${l}</span><span style="color:var(--color-text-primary)">${v}</span></div>`).join('');
+  document.getElementById('panel').classList.add('open');
+}
+
+function closePanel() { document.getElementById('panel').classList.remove('open'); }
+
+function resetView() {
+  collapsed = new Set(['G1C1','G1C2','G1C3','G1C4']);
+  render();
+}
+
+function expandAll() { collapsed.clear(); render(); }
+function collapseAll() {
+  allNodes.forEach(n=>{ if(n.children&&n.children.length) collapsed.add(n.id); });
+  render();
+}
+
+function searchTree(q) {
+  document.querySelectorAll('.node-card').forEach(el=>el.classList.remove('highlight-match'));
+  if (!q) return;
+  const ql = q.toLowerCase();
+  allNodes.forEach(n=>{
+    if (n.name.toLowerCase().includes(ql)) {
+      const el = document.getElementById('node-'+n.id);
+      if (el) el.classList.add('highlight-match');
+    }
+  });
+}
+
+resetView();
+</script>
