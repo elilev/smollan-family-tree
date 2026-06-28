@@ -1,34 +1,44 @@
 
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: var(--font-sans); }
-#app { padding: 1rem 0; }
-.toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
-.toolbar input { flex: 1; min-width: 180px; height: 36px; padding: 0 12px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); font-size: 14px; }
-.toolbar button { height: 36px; padding: 0 14px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: transparent; color: var(--color-text-primary); font-size: 13px; cursor: pointer; white-space: nowrap; }
-.toolbar button:hover { background: var(--color-background-secondary); }
-.toolbar button.active { background: var(--color-background-info); color: var(--color-text-info); border-color: transparent; }
-.legend { display: flex; gap: 12px; font-size: 12px; color: var(--color-text-secondary); align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
-.legend-item { display: flex; align-items: center; gap: 4px; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+#app { padding: 2.5rem 3rem; max-width: 100%; }
+.toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.search-wrap { position: relative; flex: 1; min-width: 220px; }
+.search-wrap svg.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--color-text-secondary, #8a8a8a); pointer-events: none; }
+.toolbar input { width: 100%; height: 40px; padding: 0 14px 0 38px; border: 1px solid var(--color-border-secondary, #d8d8d8); border-radius: 10px; background: var(--color-background-primary, #fff); color: var(--color-text-primary, #1a1a1a); font-size: 14px; font-family: inherit; transition: border-color 0.15s, box-shadow 0.15s; }
+.toolbar input::placeholder { color: var(--color-text-secondary, #9a9a9a); }
+.toolbar input:focus { outline: none; border-color: #378ADD; box-shadow: 0 0 0 3px rgba(55,138,221,0.15); }
+.toolbar button { height: 40px; padding: 0 16px; border: 1px solid var(--color-border-secondary, #d8d8d8); border-radius: 10px; background: var(--color-background-primary, #fff); color: var(--color-text-primary, #1a1a1a); font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; white-space: nowrap; transition: background 0.15s, border-color 0.15s; }
+.toolbar button:hover { background: var(--color-background-secondary, #f5f5f5); border-color: #b8b8b8; }
+.legend { display: flex; gap: 14px; font-size: 12.5px; color: var(--color-text-secondary, #6a6a6a); align-items: center; flex-wrap: wrap; margin-bottom: 2rem; }
+.legend-item { display: flex; align-items: center; gap: 5px; }
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
-#tree-container { width: 100%; overflow-x: auto; overflow-y: visible; }
-svg text { font-family: var(--font-sans); }
+#tree-container { width: 100%; overflow-x: auto; overflow-y: visible; padding: 1rem 1rem 2rem; }
+svg text { font-family: inherit; }
 .node-card { cursor: pointer; }
-.node-card rect { transition: filter 0.15s; }
-.node-card:hover rect { filter: brightness(0.95); }
-.panel { position: fixed; top: 0; right: 0; width: 300px; height: 100%; background: var(--color-background-primary); border-left: 0.5px solid var(--color-border-secondary); padding: 1.25rem; overflow-y: auto; transform: translateX(100%); transition: transform 0.25s; z-index: 100; }
+.node-card rect { transition: filter 0.15s, stroke-width 0.15s; }
+.node-card:hover rect { filter: brightness(0.96); }
+.edge-path { transition: stroke 0.15s, stroke-width 0.15s; }
+.panel { position: fixed; top: 0; right: 0; width: 340px; height: 100%; background: var(--color-background-primary, #fff); box-shadow: -8px 0 24px rgba(0,0,0,0.08); padding: 1.75rem; overflow-y: auto; transform: translateX(100%); transition: transform 0.25s ease; z-index: 100; }
 .panel.open { transform: translateX(0); }
-.panel h3 { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
-.panel .subtitle { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 1rem; }
-.panel .close-btn { position: absolute; top: 1rem; right: 1rem; background: none; border: none; cursor: pointer; font-size: 20px; color: var(--color-text-secondary); }
-.detail-row { font-size: 13px; padding: 6px 0; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; gap: 8px; }
-.detail-label { color: var(--color-text-secondary); min-width: 70px; }
+.panel-card { background: var(--color-background-secondary, #f7f7f8); border-radius: 16px; padding: 1.25rem 1.25rem 0.5rem; margin-top: 0.5rem; }
+.panel h3 { font-size: 19px; font-weight: 600; margin-bottom: 4px; letter-spacing: -0.01em; }
+.panel .subtitle { font-size: 13px; font-weight: 500; color: var(--color-text-secondary, #6a6a6a); margin-bottom: 1.25rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.panel .close-btn { position: absolute; top: 1.25rem; right: 1.25rem; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--color-background-secondary, #f0f0f0); border: none; cursor: pointer; font-size: 16px; color: var(--color-text-secondary, #6a6a6a); transition: background 0.15s; }
+.panel .close-btn:hover { background: #e5e5e5; }
+.detail-row { font-size: 13.5px; padding: 10px 0; border-bottom: 1px solid var(--color-border-tertiary, #e8e8e8); display: flex; gap: 8px; line-height: 1.45; }
+.detail-row:last-child { border-bottom: none; }
+.detail-label { color: var(--color-text-secondary, #8a8a8a); min-width: 70px; font-weight: 500; }
 .highlight-match rect { stroke: #378ADD !important; stroke-width: 2.5 !important; }
 </style>
 <div id="app">
   <h2 class="sr-only">Smollan Family Tree — interactive genealogy spanning 7 generations from Zelig (David) Smollan of Suwalki, Russia</h2>
   <div class="toolbar">
-    <input type="text" id="search" placeholder="Search by name…" oninput="searchTree(this.value)" />
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="text" id="search" placeholder="Search by name…" oninput="searchTree(this.value)" autocomplete="off" />
+    </div>
     <button onclick="resetView()" id="btn-reset">Reset view</button>
     <button onclick="expandAll()" id="btn-expand">Expand all</button>
     <button onclick="collapseAll()" id="btn-collapse">Collapse all</button>
@@ -50,7 +60,7 @@ svg text { font-family: var(--font-sans); }
   <button class="close-btn" onclick="closePanel()">✕</button>
   <h3 id="panel-name"></h3>
   <div class="subtitle" id="panel-sub"></div>
-  <div id="panel-details"></div>
+  <div class="panel-card" id="panel-details"></div>
 </div>
 <script>
 const genColors = ['#534AB7','#185FA5','#0F6E56','#BA7517','#993C1D','#993556','#3B6D11'];
@@ -321,8 +331,9 @@ function drawEdges(node, svg, svgW) {
     const path = document.createElementNS('http://www.w3.org/2000/svg','path');
     path.setAttribute('d',`M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`);
     path.setAttribute('fill','none');
-    path.setAttribute('stroke','var(--color-border-secondary)');
-    path.setAttribute('stroke-width','1.5');
+    path.setAttribute('class','edge-path');
+    path.setAttribute('stroke','#c4c4c8');
+    path.setAttribute('stroke-width','1.75');
     svg.appendChild(path);
     drawEdges(child, svg, svgW);
   });
