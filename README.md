@@ -48,6 +48,12 @@ Sharon Benda — family tree compiled April 2000
 Jason Greenberg, Melbourne — information supplied December 2000
 Esther Findlay (née Goldstein), granddaughter of Barnett — details on Barnett's first marriage
 
+This project was initiated by Jeremy Hodes in Canberra Australia, who has endlessly researched and collated the information together with many members of the families willingly investigating their branches. In particular, initially Valerie Smollan also in South Africa, and latterly Melville Goldbaum in England. All three continue to do an enormous amount of work tracing the origins of the family, which is a most difficult task
+
+Important contributions have also been made by :
+
+Grant Gochin (Los Angeles), Kenneth Gompertz (Brisbane), David Greenberg, Debbie Silverberg (Toronto), Sharon Benda (Melbourne), Zelick Smollan Mendelovich and Michelle Mendelovich-Michaels (Israel), Jason Greenberg (Melbourne), Gloria Peston (Melbourne), Michelle Brandenburger (East London, South Africa), Norman and Beryl Shapiro (Toronto), Ray Benda (Wellington, New Zealand), Roy Smollan (Auckland, New Zealand)
+
 
 Civil registration references (BMD) are drawn from England & Wales birth, marriage, and death records. Three social security records reference US descendants.
 
